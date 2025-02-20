@@ -16,6 +16,12 @@ chmod +x convert_audiobook.sh
 ./convert_audiobook.sh <drag folders here>
 ```
 
+## Getting Audiobook Files
+
+This tool is designed to work with audiobook files downloaded from Libby/Overdrive using the LibreGrab userscript, available at https://greasyfork.org/en/scripts/498782-libregrab.
+
+Files downloaded using LibreGrab will already be in the correct format with proper metadata structure, which ensures optimal compatibility with this script. This tool is specifically optimized for processing audiobooks obtained through LibreGrab.
+
 ## Features
 
 - Cross-platform support (Windows PowerShell and Unix/Linux shell)
@@ -152,6 +158,10 @@ The script will create an M4B file with:
 - Embedded cover art (if provided)
 - The same name as your book folder
 
+
+## Related Projects
+
+- LibbyRip/LibreGrab (https://github.com/HeronErin/LibbyRip) - A userscript that enables downloading audiobooks from Libby/Overdrive in a format compatible with this tool. Also available on [Greasyfork](https://greasyfork.org/en/scripts/498782-libregrab).
 
 ## Support
 
