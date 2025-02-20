@@ -11,9 +11,10 @@ Perfect for processing audiobooks downloaded from Libby (Overdrive) into a forma
 ```bash
 chmod +x convert_audiobook.sh
 ```
-3. Run the script and drag-and-drop your audiobook folders after the command:
+3. Run the script and drag-and-drop one or more audiobook folders after the command:
 ```bash
-./convert_audiobook.sh <drag folders here>
+./convert_audiobook.sh <drag folders here>          # Process multiple folders
+./convert_audiobook.sh --output-dir ~/Books <folders>  # Specify output directory
 ```
 
 ## Getting Audiobook Files
@@ -31,6 +32,7 @@ Files downloaded using LibreGrab will already be in the correct format with prop
 - Preserves audio quality
 - Maintains original audio bitrate
 - Supports metadata inclusion
+- Multiple folder support (process multiple audiobooks in one command)
 - Easy to use with a simple command
 - Automatically moves completed audiobooks to ~/totag directory
 - Handles file/directory names with spaces and special characters
@@ -92,11 +94,17 @@ You can convert multiple audiobooks sequentially by dragging multiple folders:
 ./convert_audiobook.sh <drag folder 1> <drag folder 2> <drag folder 3>
 ```
 
+You can also specify a custom output directory for all converted books:
+```bash
+./convert_audiobook.sh --output-dir ~/MyAudiobooks <folder 1> <folder 2> <folder 3>
+```
+
 The script will:
 - Process each audiobook folder one at a time
 - Create chapter markers using information from metadata.json
 - Combine MP3 files into a single M4B audiobook for each folder
 - Name each output file based on its folder name
+- Save all M4B files to the specified output directory (if --output-dir is used)
 
 Check the `example` directory for a complete working example.
 
