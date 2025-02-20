@@ -1,6 +1,8 @@
 # Audiobook M4B Creator
 
-A simple tool to convert audio files into M4B audiobooks with proper chapter markers. This tool automatically processes audio files and metadata to create professionally formatted M4B audiobooks that work great with audiobook players like Apple Books, Plex, and more.
+A cross-platform tool designed to convert Libby audiobook downloads into M4B format with proper chapter markers. This tool automatically processes audio files and metadata to create professionally formatted M4B audiobooks that work great with audiobook players like Apple Books, Plex, and more.
+
+Perfect for processing audiobooks downloaded from Libby (Overdrive) into a format compatible with most audiobook players while preserving chapter information.
 
 ## Quick Start
 
@@ -16,6 +18,8 @@ chmod +x convert_audiobook.sh
 
 ## Features
 
+- Cross-platform support (Windows PowerShell and Unix/Linux shell)
+- Specifically designed for Libby audiobook downloads
 - Converts MP3 files to M4B format
 - Automatically creates chapter markers
 - Preserves audio quality
@@ -23,6 +27,8 @@ chmod +x convert_audiobook.sh
 - Supports metadata inclusion
 - Easy to use with a simple command
 - Automatically moves completed audiobooks to ~/totag directory
+- Handles file/directory names with spaces and special characters
+- Progress tracking during conversion
 
 ## Prerequisites
 
@@ -38,24 +44,40 @@ mkdir -p ~/totag
 
 ## Installation
 
-1. Download and unzip this package
-2. Open Terminal (macOS/Linux) or Command Prompt (Windows)
-3. Navigate to the unzipped folder
-4. Make the script executable (macOS/Linux only):
+### Unix/Linux/macOS
+1. Clone or download this repository
+2. Open Terminal
+3. Navigate to the downloaded folder
+4. Make the script executable:
 ```bash
 chmod +x convert_audiobook.sh
 ```
 
+### Windows
+1. Clone or download this repository
+2. Ensure PowerShell execution policy allows local scripts:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+3. No additional setup required - use convert_audiobook.ps1
+
 ## Usage
 
 ### Single Audiobook Conversion
-1. Create a folder for your audiobook with the following items:
-- Your MP3 files in the root directory
+1. Keep your Libby downloaded audiobook files in their original structure:
+- MP3 files in the root directory
 - A `metadata` folder containing `metadata.json`
 
-2. Run the conversion script by dragging your audiobook folder after the command:
+2. Run the conversion script:
+
+Unix/Linux/macOS:
 ```bash
-./convert_audiobook.sh <drag audiobook folder here>
+./convert_audiobook.sh "path/to/audiobook folder"
+```
+
+Windows:
+```powershell
+.\convert_audiobook.ps1 -Path "path\to\audiobook folder"
 ```
 
 ### Multiple Audiobooks Conversion

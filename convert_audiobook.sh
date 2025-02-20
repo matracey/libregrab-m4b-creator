@@ -11,12 +11,50 @@ if ! command -v "ffmpeg" &> /dev/null; then
 fi
 
 # Display usage instructions if no directory provided
-if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <directory_path1> [directory_path2 ...]"
-    echo "Example: $0 ~/Downloads/MyAudiobook1 ~/Downloads/MyAudiobook2"
+# Default output directory
+OUTPUT_DIR="/Users/cerinawithasea/totag"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --output-dir)
+            if [[ -n "$2" ]]; then
+                OUTPUT_DIR="$2"
+                shift 2
+            else
+                echo "Error: --output-dir requires a directory path"
+                exit 1
+            fi
+            ;;
+        *)
+            INPUT_DIRS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Display usage instructions if no input directories provided
+if [ ${#INPUT_DIRS[@]} -eq 0 ]; then
+    echo "Usage: $0 [--output-dir <output_directory>] <directory_path1> [directory_path2 ...]"
+    echo "Example: $0 --output-dir ~/MyAudiobooks ~/Downloads/MyAudiobook1 ~/Downloads/MyAudiobook2"
     echo "Notes:"
     echo "- Each directory should contain MP3 files"
     echo "- Cover art (cover.jpg/png) and metadata.json are optional"
+    echo "- Default output directory: /Users/cerinawithasea/totag"
+    exit 1
+fi
+
+# Verify output directory exists and is writable
+if [ ! -d "$OUTPUT_DIR" ]; then
+    echo "Creating output directory: $OUTPUT_DIR"
+    mkdir -p "$OUTPUT_DIR" || {
+        echo "Error: Failed to create output directory: $OUTPUT_DIR"
+        exit 1
+    }
+fi
+
+if [ ! -w "$OUTPUT_DIR" ]; then
+    echo "Error: Output directory is not writable: $OUTPUT_DIR"
     exit 1
 fi
 
@@ -129,7 +167,7 @@ if [ $? -eq 0 ]; then
     echo "Output file: ${BOOK_TITLE}.m4b"
     echo "You can now test the audiobook in your preferred player."
     echo "Moving audiobook to totag directory..."
-    mv "${BOOK_TITLE}.m4b" /Users/cerinawithasea/totag/
+    mv "${BOOK_TITLE}.m4b" "$OUTPUT_DIR/"
     else
     printf "\rConversion failed!     \n"
     exit 1
@@ -141,7 +179,7 @@ rm -f audiofiles.txt ffmpeg_chapters.txt chapters.json
 }
 
 # Process each provided directory
-for dir in "$@"; do
+for dir in "${INPUT_DIRS[@]}"; do
     if [ ! -d "$dir" ]; then
         echo "Warning: $dir is not a directory, skipping..."
         continue
