@@ -1,3 +1,5 @@
+IM not really upkeeping this i dont have time, i made this quickly with help from ai when we were stuck, and little problems that anybody has ask chat gpt its all i coukd do for you anyways
+
 # LibreGrab M4B Creator
 
 A cross-platform tool designed to convert Libby audiobook downloads into M4B format with proper chapter markers. This tool automatically processes audio files and metadata to create professionally formatted M4B audiobooks that work great with audiobook players like Apple Books, Plex, and more.
