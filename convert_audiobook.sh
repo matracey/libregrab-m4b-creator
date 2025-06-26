@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Basic error handling
 set -e
 
@@ -99,8 +101,8 @@ fi
 # Check if metadata.json exists
 if [ -f "metadata/metadata.json" ]; then
     echo "Found metadata.json, using it for chapter information..."
-    python3 ~/bin/convert_chapters.py metadata/metadata.json
-    python3 ~/bin/convert_to_ffmpeg_chapters.py chapters.txt
+    python3 "$SCRIPT_DIR/convert_chapters.py" metadata/metadata.json
+    python3 "$SCRIPT_DIR/convert_to_ffmpeg_chapters.py" chapters.txt
 else
     echo "No metadata.json found, using MP3 filenames for chapters..."
     # Create chapters metadata from MP3 files
@@ -144,7 +146,7 @@ else
 fi
 
 # Construct FFmpeg command
-FFMPEG_CMD="ffmpeg -y -f concat -safe 0 -i audiofiles.txt -i ffmpeg_chapters.txt -map 0 -metadata album=\"$BOOK_TITLE\" -metadata artist=\"$AUTHOR\" -metadata title=\"$BOOK_TITLE\" -metadata date=\"$YEAR\" -metadata genre=\"Audiobook\" -c:a aac $BITRATE_OPT -movflags +faststart \"${BOOK_TITLE}.m4b\""
+FFMPEG_CMD="ffmpeg -hwaccel auto -threads $(nproc) -y -f concat -safe 0 -i audiofiles.txt -i ffmpeg_chapters.txt -map 0 -metadata album=\"$BOOK_TITLE\" -metadata artist=\"$AUTHOR\" -metadata title=\"$BOOK_TITLE\" -metadata date=\"$YEAR\" -metadata genre=\"Audiobook\" -c:a aac -aac_coder twoloop -ac 2 -ar 44100 -brand isom -movflags +faststart $BITRATE_OPT \"${BOOK_TITLE}.m4b\""
 
 echo "Converting to M4B format..."
 # Start FFmpeg in background
@@ -168,6 +170,7 @@ if [ $? -eq 0 ]; then
     echo "You can now test the audiobook in your preferred player."
     echo "Moving audiobook to totag directory..."
     mv "${BOOK_TITLE}.m4b" "$OUTPUT_DIR/"
+    xattr -d com.apple.quarantine "$OUTPUT_DIR/${BOOK_TITLE}.m4b" 2>/dev/null || true
     else
     printf "\rConversion failed!     \n"
     exit 1
