@@ -34,7 +34,7 @@ def get_json_path(input_path):
 def process_metadata_json(metadata_path):
     """Process metadata.json to create chapters.json"""
     print(f"Reading metadata file: {metadata_path}")
-    with open(metadata_path, 'r') as f:
+    with open(metadata_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     print("Processing spine durations...")
@@ -79,7 +79,7 @@ python3 convert_chapters.py "/path/to/chapters.json"
         json_path = get_json_path(args.input_path)
         print(f"Found JSON file: {json_path}")
         
-        with open(json_path, 'r') as f:
+        with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         if 'spine' in data:
@@ -97,13 +97,13 @@ python3 convert_chapters.py "/path/to/chapters.json"
         # Save chapters.json
         json_output_path = os.path.join(output_dir, 'chapters.json')
         print(f"Writing JSON data to: {json_output_path}")
-        with open(json_output_path, 'w') as f:
+        with open(json_output_path, 'w', encoding='utf-8') as f:
             json.dump(chapters_data, f, indent=2)
         print(f"Chapter data saved to {json_output_path}")
 
         # Continue with existing txt file creation...
         print(f"Writing chapters to: {output_path}")
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             chapters = chapters_data.get('chapters', [])
             for chapter in chapters:
                 start_time_seconds = float(chapter['start_time']) / 1000

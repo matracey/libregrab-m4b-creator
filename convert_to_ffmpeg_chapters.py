@@ -14,7 +14,7 @@ def convert_chapters(input_file):
         
     # Read chapters
     chapters = []
-    with open(input_file, 'r') as f:
+    with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
             # Extract timestamp and title
             match = re.match(r'(\d{2}:\d{2}:\d{2})\s+(.+)', line.strip())
@@ -31,7 +31,7 @@ def convert_chapters(input_file):
     output_file = os.path.join(os.path.dirname(input_file), 'ffmpeg_chapters.txt')
     
     # Write ffmpeg metadata format
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write(';FFMETADATA1\n\n')
         
         for i, (start_time, title) in enumerate(chapters):
