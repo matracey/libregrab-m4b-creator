@@ -6,7 +6,7 @@ param (
 )
 
 # Function to check if a command exists
-function Test-Command {
+function Test-CommandExists {
   param ($command)
   $oldPreference = $ErrorActionPreference
   $ErrorActionPreference = 'stop'
@@ -17,7 +17,7 @@ function Test-Command {
 }
 
 # Check for ffmpeg
-if (-not (Test-Command 'ffmpeg')) {
+if (-not (Test-CommandExists 'ffmpeg')) {
   Write-Error 'ffmpeg is not installed. Please install it before running this script.'
   exit 1
 }
