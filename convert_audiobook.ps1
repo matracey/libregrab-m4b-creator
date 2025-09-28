@@ -24,8 +24,8 @@ if (-not (Test-Path $OutputDir)) {
 }
 
 # Get current directory name as book title
-$BookTitle = Split-Path -Leaf (Get-Location)
-$TempDir = "temp_$([System.IO.Path]::GetRandomFileName())"
+$BookTitle = $PWD.Name
+$TempDir = "temp_{0}" -f ([System.IO.Path]::GetRandomFileName())
 
 # Create temporary directory for processing
 New-Item -ItemType Directory -Path $TempDir | Out-Null
