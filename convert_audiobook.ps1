@@ -1,9 +1,13 @@
 [CmdletBinding()]
 param (
   [Parameter(Mandatory = $false)]
-  [ValidateScript({ Test-Path -Path $_ -PathType Container })]
-  [string]$OutputDir = "$env:USERPROFILE\totag"
+  [string]$OutputDir = "$env:USERPROFILE\totag",
+    
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$InputDirs
 )
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Function to check if a command exists
 function Test-CommandExists {
@@ -17,91 +21,170 @@ if (-not (Test-CommandExists 'ffmpeg')) {
   exit 1
 }
 
+# Display usage if no input directories provided
+if ($InputDirs.Count -eq 0) {
+  Write-Host 'Usage: .\convert_audiobook.ps1 [-OutputDir <output_directory>] <directory_path1> [directory_path2 ...]'
+  Write-Host 'Example: .\convert_audiobook.ps1 -OutputDir ~\MyAudiobooks ~\Downloads\MyAudiobook1 ~\Downloads\MyAudiobook2'
+  Write-Host 'Notes:'
+  Write-Host '- Each directory should contain MP3 files'
+  Write-Host '- Cover art (cover.jpg/png) and metadata.json are optional'
+  Write-Host "- Default output directory: $env:USERPROFILE\totag"
+  exit 1
+}
+
 # Create output directory if it doesn't exist
 if (-not (Test-Path $OutputDir)) {
-  New-Item -ItemType Directory -Path $OutputDir | Out-Null
+  New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
   Write-Verbose "Created output directory: $OutputDir"
 }
 
-# Get current directory name as book title
-$BookTitle = $PWD.Name
-$TempDir = "temp_{0}" -f ([System.IO.Path]::GetRandomFileName())
-
-# Create temporary directory for processing
-New-Item -ItemType Directory -Path $TempDir | Out-Null
-Write-Verbose "Created temporary directory for processing: $TempDir"
-
-try {
-  # Find all audio files (mp3, m4a, m4b) in current directory
-  $AudioFiles = Get-ChildItem -Path . -Recurse -Include *.mp3, *.m4a, *.m4b | Sort-Object { [regex]::Replace($_.Name, '\d+', { $Args[0].Value.PadLeft(20, '0') }) }
-
-  if ($AudioFiles.Count -eq 0) {
-    throw 'No audio files found in current directory!'
+function Convert-AudiobookDirectory {
+  param (
+    [string]$Directory
+  )
+    
+  if (-not (Test-Path $Directory -PathType Container)) {
+    Write-Warning "$Directory is not a directory, skipping..."
+    return
   }
-
-  Write-Verbose "Found $($AudioFiles.Count) audio files. Processing..."
-
-  # Create concatenation file
-  $ConcatFile = Join-Path $TempDir 'concat.txt'
-  $fileContent = $AudioFiles | ForEach-Object {
-    # FFmpeg concat demuxer requires special characters to be escaped.
-    $escapedPath = $_.FullName.Replace("'", "'\''")
-    "file '$escapedPath'"
-  }
-  Set-Content -Path $ConcatFile -Value $fileContent -Encoding UTF8
-
-  # Check for metadata.json and process chapters
-  if (Test-Path 'metadata.json') {
-    Write-Verbose 'Found metadata.json, using it for chapter information...'
-    python convert_chapters.py 'metadata.json'
-  }
-
-  # Check for chapters file
-  $ChaptersFile = ''
-  if (Test-Path 'chapters.txt') {
-    $ChaptersFile = 'chapters.txt'
-  } elseif (Test-Path 'ffmpeg_chapters.txt') {
+    
+  Push-Location $Directory
+  try {
+    $bookTitle = (Get-Item -Path .).Name
+    $author = 'Unknown Author'
+    $year = (Get-Date).Year
+        
+    Write-Verbose "Processing audiobook: $bookTitle"
+        
+    # Find all MP3 files
+    $AudioFiles = Get-ChildItem -Path . -Filter *.mp3 | Sort-Object Name
+        
+    if ($AudioFiles.Count -eq 0) {
+      Write-Warning "No MP3 files found in $Directory, skipping..."
+      return
+    }
+        
+    # Create audio files list
+    $AudioFilesList = 'audiofiles.txt'
+    $AudioFiles | ForEach-Object {
+      "file '$($_.FullName.Replace('\', '/').Replace("'", "\'"))'"
+    } | Out-File -FilePath $AudioFilesList -Encoding UTF8
+        
+    Write-Verbose 'Audio files list created:'
+    Get-Content $AudioFilesList
+        
+    # Get bitrate from first file
+    $firstFile = $AudioFiles[0].FullName
+    $bitrateInfo = & ffprobe -v error -select_streams a:0 -show_entries stream=bit_rate -of default=noprint_wrappers=1:nokey=1 "$firstFile" 2>$null
+        
+    if ($bitrateInfo -and $bitrateInfo -ne 'N/A') {
+      $bitrateOpt = "-b:a $bitrateInfo"
+      Write-Verbose "Detected bitrate: $bitrateInfo"
+    } else {
+      Write-Warning "Could not detect input bitrate, will maintain input file's bitrate"
+      $bitrateOpt = ''
+    }
+        
+    # Check for metadata.json
     $ChaptersFile = 'ffmpeg_chapters.txt'
-  }
-
-  # Concatenate files and convert to M4B
-  Write-Verbose 'Converting files to M4B format...'
-  $ProgressParams = @{
-    Activity        = 'Converting audiobook to M4B'
-    Status          = 'Processing files...'
-    PercentComplete = 0
-  }
-  Write-Progress @progressParams
-
-  $ffmpegArgs = @('-f', 'concat', '-safe', '0', '-i', $ConcatFile)
-  if ($ChaptersFile) {
-    Write-Verbose "Using chapters from $ChaptersFile"
-    $ffmpegArgs += ('-i', $ChaptersFile, '-map_metadata', '1')
-  }
-  $ffmpegArgs += ('-c:a', 'aac', '-b:a', '64k', "$TempDir\temp.m4b")
-  & ffmpeg @ffmpegArgs
-
-  # Add cover art if available
-  $CoverFile = Get-ChildItem -Path . -Include cover.jpg, cover.png | Select-Object -First 1
-  if ($CoverFile) {
-    Write-Verbose "Adding cover art from $($CoverFile.Name)"
-    $tempWithCover = "$TempDir\temp_with_cover.m4b"
-    & ffmpeg -i "$TempDir\temp.m4b" -i $CoverFile.FullName -map 0 -map 1 -c copy -disposition:v:0 attached_pic $tempWithCover
-    Move-Item -Path $tempWithCover -Destination "$TempDir\temp.m4b" -Force
-  }
-
-  # Move the final file to output directory
-  $OutputFile = Join-Path $OutputDir "$BookTitle.m4b"
-  Move-Item -Path "$TempDir\temp.m4b" -Destination $OutputFile -Force
-  Write-Host "Successfully created audiobook: $OutputFile"
-  Write-Verbose 'You can now test the audiobook in your preferred player.'
-
-} catch {
-  Write-Error "An error occurred: $_"
-} finally {
-  # Cleanup
-  if (Test-Path $TempDir) {
-    Remove-Item -Path $TempDir -Recurse -Force
-    Write-Verbose 'Cleaned up temporary files.'
+    if (Test-Path 'metadata\metadata.json') {
+      Write-Verbose 'Found metadata.json, using it for chapter information...'
+      & python "$ScriptDir\convert_chapters.py" 'metadata\metadata.json'
+      & python "$ScriptDir\convert_to_ffmpeg_chapters.py" 'chapters.txt'
+    } else {
+      Write-Verbose 'No metadata.json found, using MP3 filenames for chapters...'
+      # Generate chapters from MP3 files
+      ';FFMETADATA1' | Out-File -FilePath $ChaptersFile -Encoding UTF8
+            
+      $currentTime = 0
+      foreach ($file in $AudioFiles) {
+        # Get duration
+        $duration = & ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file.FullName 2>$null
+        $duration = [Math]::Floor([double]$duration)
+                
+        # Write chapter metadata
+        '[CHAPTER]' | Out-File -FilePath $ChaptersFile -Append -Encoding UTF8
+        'TIMEBASE=1/1' | Out-File -FilePath $ChaptersFile -Append -Encoding UTF8
+        "START=$currentTime" | Out-File -FilePath $ChaptersFile -Append -Encoding UTF8
+        $nextTime = $currentTime + $duration
+        "END=$nextTime" | Out-File -FilePath $ChaptersFile -Append -Encoding UTF8
+        "title=$($file.BaseName)" | Out-File -FilePath $ChaptersFile -Append -Encoding UTF8
+                
+        $currentTime = $nextTime
+      }
+    }
+        
+    # Get number of logical processors for threading
+    $threads = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
+        
+    # Construct FFmpeg command
+    $OutputFile = "$bookTitle.m4b"
+    $ffmpegArgs = @(
+      '-hwaccel', 'auto',
+      '-threads', $threads,
+      '-y',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', $AudioFilesList,
+      '-i', $ChaptersFile,
+      '-map', '0',
+      '-metadata', "album=`"$bookTitle`"",
+      '-metadata', "artist=`"$author`"",
+      '-metadata', "title=`"$bookTitle`"",
+      '-metadata', "date=`"$year`"",
+      '-metadata', "genre=`"Audiobook`"",
+      '-c:a', 'aac',
+      '-aac_coder', 'twoloop',
+      '-ac', '2',
+      '-ar', '44100',
+      '-movflags', '+faststart'
+    )
+        
+    if ($bitrateOpt) {
+      $ffmpegArgs += $bitrateOpt.Split(' ')
+    }
+        
+    $ffmpegArgs += "`"$OutputFile`""
+        
+    Write-Verbose 'Converting to M4B format...'
+        
+    # Start FFmpeg process
+    $process = Start-Process -FilePath 'ffmpeg' -ArgumentList $ffmpegArgs -NoNewWindow -PassThru
+        
+    # Show progress animation
+    $spin = @('-', '\', '|', '/')
+    $i = 0
+    while (!$process.HasExited) {
+      Write-Verbose "Converting... $($spin[$i % 4])"
+      Start-Sleep -Milliseconds 100
+      $i++
+    }
+        
+    if ($process.ExitCode -eq 0) {
+      Write-Verbose "`rConversion complete!     "
+      Write-Verbose "Output file: $OutputFile"
+      Write-Verbose 'Moving audiobook to output directory...'
+      Move-Item -Path $OutputFile -Destination "$OutputDir\" -Force
+      Write-Verbose 'You can now test the audiobook in your preferred player.'
+    } else {
+      Write-Error "`rConversion failed!     "
+      throw "FFmpeg exited with code $($process.ExitCode)"
+    }
+        
+    # Cleanup temporary files
+    Write-Verbose 'Cleaning up temporary files...'
+    Remove-Item -Path $AudioFilesList, $ChaptersFile, 'chapters.json' -ErrorAction SilentlyContinue
+        
+  } finally {
+    Pop-Location
   }
 }
+
+# Process each provided directory
+foreach ($dir in $InputDirs) {
+  Convert-AudiobookDirectory -Directory $dir
+  Write-Verbose "Completed processing: $dir"
+  Write-Verbose '----------------------------------------'
+}
+
+Write-Host 'All audiobooks processed successfully!'
