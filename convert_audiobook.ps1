@@ -78,7 +78,7 @@ try {
     Write-Verbose "Using chapters from $ChaptersFile"
     $ffmpegArgs += ('-i', $ChaptersFile, '-map_metadata', '1')
   }
-  $ffmpegArgs += ('-c', 'copy', "$TempDir\temp.m4b")
+  $ffmpegArgs += ('-c:a', 'aac', '-b:a', '64k', "$TempDir\temp.m4b")
   & ffmpeg @ffmpegArgs
 
   # Add cover art if available
