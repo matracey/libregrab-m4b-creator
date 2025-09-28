@@ -8,12 +8,7 @@ param (
 # Function to check if a command exists
 function Test-CommandExists {
   param ($Command)
-  $OldPreference = $ErrorActionPreference
-  $ErrorActionPreference = 'stop'
-  try {
-    if (Get-Command $Command) { return $true }
-  } catch { return $false }
-  finally { $ErrorActionPreference = $OldPreference }
+  return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
 # Check for ffmpeg
