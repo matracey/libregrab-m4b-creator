@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param (
   [Parameter(Mandatory = $false)]
+  [ValidateScript({ Test-Path -Path $_ -PathType Container })]
   [string]$OutputDir = "$env:USERPROFILE\totag"
 )
 
