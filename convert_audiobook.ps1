@@ -43,9 +43,12 @@ try {
 
   # Create concatenation file
   $ConcatFile = Join-Path $TempDir 'concat.txt'
-  $AudioFiles | ForEach-Object {
-    "file '$($_.FullName -replace "'", "''")'" | Add-Content -Path $ConcatFile -Encoding UTF8
+  $fileContent = $AudioFiles | ForEach-Object {
+    # FFmpeg concat demuxer requires special characters to be escaped.
+    $escapedPath = $_.FullName.Replace("'", "'\''")
+    "file '$escapedPath'"
   }
+  Set-Content -Path $ConcatFile -Value $fileContent -Encoding UTF8
 
   # Check for metadata.json and process chapters
   if (Test-Path 'metadata.json') {
@@ -70,19 +73,21 @@ try {
   }
   Write-Progress @progressParams
 
+  $ffmpegArgs = @('-f', 'concat', '-safe', '0', '-i', $ConcatFile)
   if ($ChaptersFile) {
     Write-Verbose "Using chapters from $ChaptersFile"
-    ffmpeg -f concat -safe 0 -i $ConcatFile -i $ChaptersFile -map_metadata 1 -c copy "$TempDir\temp.m4b"
-  } else {
-    ffmpeg -f concat -safe 0 -i $ConcatFile -c copy "$TempDir\temp.m4b"
+    $ffmpegArgs += ('-i', $ChaptersFile, '-map_metadata', '1')
   }
+  $ffmpegArgs += ('-c', 'copy', "$TempDir\temp.m4b")
+  & ffmpeg @ffmpegArgs
 
   # Add cover art if available
-  if (Test-Path 'cover.jpg' -or Test-Path 'cover.png') {
-    $CoverFile = if (Test-Path 'cover.jpg') { 'cover.jpg' } else { 'cover.png' }
+  $CoverFile = Get-ChildItem -Path . -Include cover.jpg, cover.png | Select-Object -First 1
+  if ($CoverFile) {
     Write-Verbose "Adding cover art from $($CoverFile.Name)"
-    ffmpeg -i "$TempDir\temp.m4b" -i $CoverFile -map 0 -map 1 -c copy -disposition:v:0 attached_pic "$TempDir\temp_with_cover.m4b"
-    Move-Item -Path "$TempDir\temp_with_cover.m4b" -Destination "$TempDir\temp.m4b" -Force
+    $tempWithCover = "$TempDir\temp_with_cover.m4b"
+    & ffmpeg -i "$TempDir\temp.m4b" -i $CoverFile.FullName -map 0 -map 1 -c copy -disposition:v:0 attached_pic $tempWithCover
+    Move-Item -Path $tempWithCover -Destination "$TempDir\temp.m4b" -Force
   }
 
   # Move the final file to output directory
