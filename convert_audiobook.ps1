@@ -19,7 +19,7 @@ if (-not (Test-CommandExists 'ffmpeg')) {
 
 # Create output directory if it doesn't exist
 if (-not (Test-Path $OutputDir)) {
-  New-Item -ItemType Directory -Path $OutputDir
+  New-Item -ItemType Directory -Path $OutputDir | Out-Null
   Write-Verbose "Created output directory: $OutputDir"
 }
 
@@ -28,7 +28,7 @@ $BookTitle = Split-Path -Leaf (Get-Location)
 $TempDir = "temp_$([System.IO.Path]::GetRandomFileName())"
 
 # Create temporary directory for processing
-New-Item -ItemType Directory -Path $TempDir
+New-Item -ItemType Directory -Path $TempDir | Out-Null
 Write-Verbose "Created temporary directory for processing: $TempDir"
 
 try {
