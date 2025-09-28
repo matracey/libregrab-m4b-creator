@@ -7,13 +7,13 @@ param (
 
 # Function to check if a command exists
 function Test-CommandExists {
-  param ($command)
-  $oldPreference = $ErrorActionPreference
+  param ($Command)
+  $OldPreference = $ErrorActionPreference
   $ErrorActionPreference = 'stop'
   try {
-    if (Get-Command $command) { return $true }
+    if (Get-Command $Command) { return $true }
   } catch { return $false }
-  finally { $ErrorActionPreference = $oldPreference }
+  finally { $ErrorActionPreference = $OldPreference }
 }
 
 # Check for ffmpeg
@@ -29,27 +29,27 @@ if (-not (Test-Path $OutputDir)) {
 }
 
 # Get current directory name as book title
-$BOOK_TITLE = Split-Path -Leaf (Get-Location)
-$TEMP_DIR = "temp_$([System.IO.Path]::GetRandomFileName())"
+$BookTitle = Split-Path -Leaf (Get-Location)
+$TempDir = "temp_$([System.IO.Path]::GetRandomFileName())"
 
 # Create temporary directory for processing
-New-Item -ItemType Directory -Path $TEMP_DIR
-Write-Verbose "Created temporary directory for processing: $tempDir"
+New-Item -ItemType Directory -Path $TempDir
+Write-Verbose "Created temporary directory for processing: $TempDir"
 
 try {
   # Find all audio files (mp3, m4a, m4b) in current directory
-  $audioFiles = Get-ChildItem -Path . -Recurse -Include *.mp3, *.m4a, *.m4b | Sort-Object { [regex]::Replace($_.Name, '\d+', { $args[0].Value.PadLeft(20, '0') }) }
+  $AudioFiles = Get-ChildItem -Path . -Recurse -Include *.mp3, *.m4a, *.m4b | Sort-Object { [regex]::Replace($_.Name, '\d+', { $Args[0].Value.PadLeft(20, '0') }) }
 
-  if ($audioFiles.Count -eq 0) {
+  if ($AudioFiles.Count -eq 0) {
     throw 'No audio files found in current directory!'
   }
 
-  Write-Verbose "Found $($audioFiles.Count) audio files. Processing..."
+  Write-Verbose "Found $($AudioFiles.Count) audio files. Processing..."
 
   # Create concatenation file
-  $concatFile = Join-Path $TEMP_DIR 'concat.txt'
-  $audioFiles | ForEach-Object {
-    "file '$($_.FullName -replace "'", "''")'" | Add-Content -Path $concatFile -Encoding UTF8
+  $ConcatFile = Join-Path $TempDir 'concat.txt'
+  $AudioFiles | ForEach-Object {
+    "file '$($_.FullName -replace "'", "''")'" | Add-Content -Path $ConcatFile -Encoding UTF8
   }
 
   # Check for metadata.json and process chapters
@@ -59,49 +59,49 @@ try {
   }
 
   # Check for chapters file
-  $chaptersFile = ''
+  $ChaptersFile = ''
   if (Test-Path 'chapters.txt') {
-    $chaptersFile = 'chapters.txt'
+    $ChaptersFile = 'chapters.txt'
   } elseif (Test-Path 'ffmpeg_chapters.txt') {
-    $chaptersFile = 'ffmpeg_chapters.txt'
+    $ChaptersFile = 'ffmpeg_chapters.txt'
   }
 
   # Concatenate files and convert to M4B
   Write-Verbose 'Converting files to M4B format...'
-  $progressParams = @{
+  $ProgressParams = @{
     Activity        = 'Converting audiobook to M4B'
     Status          = 'Processing files...'
     PercentComplete = 0
   }
   Write-Progress @progressParams
 
-  if ($chaptersFile) {
-    Write-Verbose "Using chapters from $chaptersFile"
-    ffmpeg -f concat -safe 0 -i $concatFile -i $chaptersFile -map_metadata 1 -c copy "$TEMP_DIR\temp.m4b"
+  if ($ChaptersFile) {
+    Write-Verbose "Using chapters from $ChaptersFile"
+    ffmpeg -f concat -safe 0 -i $ConcatFile -i $ChaptersFile -map_metadata 1 -c copy "$TempDir\temp.m4b"
   } else {
-    ffmpeg -f concat -safe 0 -i $concatFile -c copy "$TEMP_DIR\temp.m4b"
+    ffmpeg -f concat -safe 0 -i $ConcatFile -c copy "$TempDir\temp.m4b"
   }
 
   # Add cover art if available
   if (Test-Path 'cover.jpg' -or Test-Path 'cover.png') {
-    $coverFile = if (Test-Path 'cover.jpg') { 'cover.jpg' } else { 'cover.png' }
-    Write-Verbose "Adding cover art from $($coverFile.Name)"
-    ffmpeg -i "$TEMP_DIR\temp.m4b" -i $coverFile -map 0 -map 1 -c copy -disposition:v:0 attached_pic "$TEMP_DIR\temp_with_cover.m4b"
-    Move-Item -Path "$TEMP_DIR\temp_with_cover.m4b" -Destination "$TEMP_DIR\temp.m4b" -Force
+    $CoverFile = if (Test-Path 'cover.jpg') { 'cover.jpg' } else { 'cover.png' }
+    Write-Verbose "Adding cover art from $($CoverFile.Name)"
+    ffmpeg -i "$TempDir\temp.m4b" -i $CoverFile -map 0 -map 1 -c copy -disposition:v:0 attached_pic "$TempDir\temp_with_cover.m4b"
+    Move-Item -Path "$TempDir\temp_with_cover.m4b" -Destination "$TempDir\temp.m4b" -Force
   }
 
   # Move the final file to output directory
-  $outputFile = Join-Path $OutputDir "$BOOK_TITLE.m4b"
-  Move-Item -Path "$TEMP_DIR\temp.m4b" -Destination $outputFile -Force
-  Write-Host "Successfully created audiobook: $outputFile"
+  $OutputFile = Join-Path $OutputDir "$BookTitle.m4b"
+  Move-Item -Path "$TempDir\temp.m4b" -Destination $OutputFile -Force
+  Write-Host "Successfully created audiobook: $OutputFile"
   Write-Verbose 'You can now test the audiobook in your preferred player.'
 
 } catch {
   Write-Error "An error occurred: $_"
 } finally {
   # Cleanup
-  if (Test-Path $TEMP_DIR) {
-    Remove-Item -Path $TEMP_DIR -Recurse -Force
+  if (Test-Path $TempDir) {
+    Remove-Item -Path $TempDir -Recurse -Force
     Write-Verbose 'Cleaned up temporary files.'
   }
 }
